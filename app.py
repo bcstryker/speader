@@ -6,6 +6,7 @@ WPM_MIN = 100
 WPM_MAX = 1200
 TEXT_SIZE_MIN = 32
 TEXT_SIZE_MAX = 110
+TEXT_INPUT_MIN_LINES = 5
 
 THEMES = {
     "dark": {
@@ -366,7 +367,6 @@ class SpeedReaderApp(tk.Tk):
             bg="#111827",
             fg="#E0F2FE",
             font=("Segoe UI", self.text_size.get(), "bold"),
-            wraplength=760,
             justify="center",
         )
         self.word_display.pack(expand=True, pady=16)
@@ -513,12 +513,12 @@ class SpeedReaderApp(tk.Tk):
 
         self.text_input = tk.Text(
             self,
-            wrap="word",
+            wrap="char",
             font=("Segoe UI", 12),
             bg="#F3F4F6",
             fg="#111827",
             relief="flat",
-            height=5,
+            height=TEXT_INPUT_MIN_LINES,
             padx=10,
             pady=10,
         )
@@ -526,6 +526,7 @@ class SpeedReaderApp(tk.Tk):
         self.text_input.tag_configure("current_word")
         self.text_input.bind("<<Modified>>", self._on_text_change)
         self.text_input.bind("<Button-1>", self._on_text_click)
+        self.text_input.bind("<Configure>", self._on_text_input_configure)
 
         self.status_label = tk.Label(
             self,
@@ -651,6 +652,7 @@ class SpeedReaderApp(tk.Tk):
 
     def _on_text_change(self, event):
         if self.text_input.edit_modified():
+            self._resize_text_input()
             self.current_word_index = 0
             self.highlighted_word_index = None
             self.word_list = []
@@ -659,6 +661,22 @@ class SpeedReaderApp(tk.Tk):
             self._clear_word_highlight()
             self._update_status()
             self.text_input.edit_modified(False)
+
+    def _on_text_input_configure(self, event=None):
+        self.after_idle(self._resize_text_input)
+
+    def _resize_text_input(self):
+        self.text_input.update_idletasks()
+        display_line_count = self.text_input.count(
+            "1.0",
+            "end-1c",
+            "displaylines",
+        )
+        display_lines = int(display_line_count[0]) if display_line_count else 1
+        desired_height = max(TEXT_INPUT_MIN_LINES, display_lines)
+        if int(self.text_input.cget("height")) != desired_height:
+            self.text_input.configure(height=desired_height)
+            self._fit_height_to_content()
 
     def _on_text_click(self, event):
         if not self.word_list:
@@ -687,8 +705,8 @@ class SpeedReaderApp(tk.Tk):
         self.word_list = []
 
         for match in re.finditer(r"\S+", raw_text):
-            start = f"1.0 + {match.start()} chars"
-            end = f"1.0 + {match.end()} chars"
+            start = self.text_input.index(f"1.0 + {match.start()} chars")
+            end = self.text_input.index(f"1.0 + {match.end()} chars")
             self.word_list.append({
                 "text": match.group(),
                 "start": start,
@@ -705,8 +723,13 @@ class SpeedReaderApp(tk.Tk):
             return
 
         word = self.word_list[word_index]
-        self.text_input.tag_add("current_word", word["start"], word["end"])
-        self.text_input.see(word["start"])
+        start = self.text_input.index(word["start"])
+        end = self.text_input.index(word["end"])
+        if word_index == len(self.word_list) - 1:
+            self.text_input.see(start)
+        elif self.text_input.compare(start, "<", end):
+            self.text_input.tag_add("current_word", start, end)
+            self.text_input.see(start)
         self.highlighted_word_index = word_index
 
     def _show_word_at_index(self, word_index):

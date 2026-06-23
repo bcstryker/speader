@@ -513,7 +513,7 @@ class SpeedReaderApp(tk.Tk):
 
         self.text_input = tk.Text(
             self,
-            wrap="char",
+            wrap="word",
             font=("Segoe UI", 12),
             bg="#F3F4F6",
             fg="#111827",
@@ -525,6 +525,7 @@ class SpeedReaderApp(tk.Tk):
         self.text_input.pack(fill="x", padx=10, pady=(4, 10))
         self.text_input.tag_configure("current_word")
         self.text_input.bind("<<Modified>>", self._on_text_change)
+        self.text_input.bind("<<Paste>>", self._on_text_paste)
         self.text_input.bind("<Button-1>", self._on_text_click)
         self.text_input.bind("<Configure>", self._on_text_input_configure)
 
@@ -661,6 +662,19 @@ class SpeedReaderApp(tk.Tk):
             self._clear_word_highlight()
             self._update_status()
             self.text_input.edit_modified(False)
+
+    def _on_text_paste(self, event):
+        try:
+            pasted_text = self.clipboard_get()
+        except tk.TclError:
+            return "break"
+
+        if self.text_input.tag_ranges("sel"):
+            self.text_input.delete("sel.first", "sel.last")
+
+        self.text_input.insert("insert", pasted_text.rstrip())
+        self.text_input.edit_modified(True)
+        return "break"
 
     def _on_text_input_configure(self, event=None):
         self.after_idle(self._resize_text_input)

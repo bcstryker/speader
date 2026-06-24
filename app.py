@@ -537,7 +537,7 @@ class SpeedReaderApp(tk.Tk):
             fg="#9CA3AF",
             font=("Segoe UI", 10),
         )
-        self.status_label.pack(side="left")
+        self.status_label.place(relx=0.5, rely=0.5, anchor="center")
 
         self.update_label = tk.Label(
             self.status_frame,

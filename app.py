@@ -527,14 +527,26 @@ class SpeedReaderApp(tk.Tk):
         self.text_input.bind("<Button-1>", self._on_text_click)
         self.text_input.bind("<Configure>", self._on_text_input_configure)
 
+        self.status_frame = tk.Frame(self, bg="#1F2937")
+        self.status_frame.pack(fill="x", padx=10, pady=(0, 10))
+
         self.status_label = tk.Label(
-            self,
+            self.status_frame,
             text="Words: 0    Position: 0 / 0",
             bg="#1F2937",
             fg="#9CA3AF",
             font=("Segoe UI", 10),
         )
-        self.status_label.pack(fill="x", padx=10, pady=(0, 10))
+        self.status_label.pack(side="left")
+
+        self.update_label = tk.Label(
+            self.status_frame,
+            text="",
+            bg="#1F2937",
+            fg="#E0F2FE",
+            font=("Segoe UI", 10, "bold"),
+        )
+        self.update_label.pack(side="right")
 
     def _fit_initial_window(self):
         self.update_idletasks()
@@ -565,7 +577,11 @@ class SpeedReaderApp(tk.Tk):
 
         def apply_to(widget):
             if isinstance(widget, tk.Frame):
-                bg = colors["window"] if widget is self.button_frame else colors["panel"]
+                bg = (
+                    colors["window"]
+                    if widget in (self.button_frame, self.status_frame)
+                    else colors["panel"]
+                )
                 widget.configure(bg=bg)
             elif isinstance(widget, RoundedSlider):
                 widget.apply_theme(colors)
@@ -574,6 +590,8 @@ class SpeedReaderApp(tk.Tk):
             elif isinstance(widget, tk.Label):
                 if widget is self.status_label:
                     widget.configure(bg=colors["window"], fg=colors["muted"])
+                elif widget is self.update_label:
+                    widget.configure(bg=colors["window"], fg=colors["accent"])
                 elif widget is self.text_label:
                     widget.configure(bg=colors["window"], fg=colors["text"])
                 elif widget is self.word_display:
@@ -710,11 +728,10 @@ class SpeedReaderApp(tk.Tk):
         else:
             pos = self.current_word_index if total else 0
 
-        status = f"Words: {total}    Position: {pos} / {total}"
-        if self.update_available:
-            status += "    Update Available"
         self.status_label.config(
-            text=status)
+            text=f"Words: {total}    Position: {pos} / {total}")
+        self.update_label.config(
+            text="Update Available" if self.update_available else "")
 
     def _check_for_updates(self):
         thread = threading.Thread(target=self._check_for_updates_in_background)

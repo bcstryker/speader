@@ -1,5 +1,8 @@
 import re
+import subprocess
+import threading
 import tkinter as tk
+from pathlib import Path
 
 
 WPM_MIN = 100
@@ -7,6 +10,9 @@ WPM_MAX = 1200
 TEXT_SIZE_MIN = 32
 TEXT_SIZE_MAX = 110
 TEXT_INPUT_MIN_LINES = 5
+REPO_DIR = Path(__file__).resolve().parent
+UPDATE_REMOTE = "origin"
+UPDATE_BRANCH = "main"
 
 THEMES = {
     "dark": {
@@ -341,11 +347,13 @@ class SpeedReaderApp(tk.Tk):
         self.wpm_text = tk.StringVar(value=str(self.wpm.get()))
         self.text_size = tk.IntVar(value=70)
         self.text_size_text = tk.StringVar(value=str(self.text_size.get()))
+        self.update_available = False
 
         self._build_ui()
         self._apply_theme()
         self._fit_initial_window()
         self._update_status()
+        self._check_for_updates()
 
     def _build_ui(self):
         header = tk.Label(
@@ -711,8 +719,56 @@ class SpeedReaderApp(tk.Tk):
             pos = self.highlighted_word_index + 1
         else:
             pos = self.current_word_index if total else 0
+
+        status = f"Words: {total}    Position: {pos} / {total}"
+        if self.update_available:
+            status += "    Update Available"
         self.status_label.config(
-            text=f"Words: {total}    Position: {pos} / {total}")
+            text=status)
+
+    def _check_for_updates(self):
+        thread = threading.Thread(target=self._check_for_updates_in_background)
+        thread.daemon = True
+        thread.start()
+
+    def _check_for_updates_in_background(self):
+        try:
+            subprocess.run(
+                [
+                    "git",
+                    "fetch",
+                    UPDATE_REMOTE,
+                    f"+refs/heads/{UPDATE_BRANCH}:refs/remotes/{UPDATE_REMOTE}/{UPDATE_BRANCH}",
+                ],
+                cwd=REPO_DIR,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=10,
+                check=True,
+            )
+            result = subprocess.run(
+                [
+                    "git",
+                    "rev-list",
+                    "--count",
+                    f"HEAD..{UPDATE_REMOTE}/{UPDATE_BRANCH}",
+                ],
+                cwd=REPO_DIR,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=True,
+            )
+            commit_count = int(result.stdout.strip())
+        except (OSError, subprocess.SubprocessError, ValueError):
+            return
+
+        if commit_count > 0:
+            self.after(0, self._mark_update_available)
+
+    def _mark_update_available(self):
+        self.update_available = True
+        self._update_status()
 
     def _refresh_word_list(self):
         raw_text = self.text_input.get("1.0", "end-1c")

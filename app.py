@@ -356,18 +356,8 @@ class SpeedReaderApp(tk.Tk):
         self._check_for_updates()
 
     def _build_ui(self):
-        header = tk.Label(
-            self,
-            text="Off-Brand Speed Reading Application",
-            bg="#111827",
-            fg="#F9FAFB",
-            font=("Segoe UI", 24, "bold"),
-            pady=12,
-        )
-        header.pack(fill="x", padx=10, pady=(10, 4))
-
         display_frame = tk.Frame(self, bg="#111827")
-        display_frame.pack(fill="both", expand=True, padx=10, pady=(4, 8))
+        display_frame.pack(fill="both", expand=True, padx=10, pady=(10, 8))
 
         self.word_display = tk.Label(
             display_frame,
